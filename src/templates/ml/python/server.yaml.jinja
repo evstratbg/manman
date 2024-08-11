@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    "manman/release": "{{ manman_release }}"
+    "app/branch": {{ branch_name }}
+    "app/commit": "{{ commit }}"
+    "app/team": "{{ team }}"
+  name: {{ project_name }}
+  labels:
+    app: {{ project_name }}
+spec:
+  {% if not is_hpa_enabled %}
+  replicas: {{ replicas }}
+  {% endif %}
+  selector:
+    matchLabels:
+      app: {{ project_name }}
+  revisionHistoryLimit: 3
+  template:
+    metadata:
+      labels:
+        app: {{ project_name }}
+    spec:
+      imagePullSecrets:
+      - name: registrysecret
+
+      {{ tolerations | indent(6) }}
+      {{ affinity | indent(6) }}
+
+      {% if "production" in current_env %}
+      priorityClassName: production-high
+      {% endif %}
+
+      containers:
+      - name: {{ project_name }}
+        image: {{ image }}
+        env:
+          {% for name, value in envs.items() %}
+          - name: {{ name }}
+            value: "{{ value }}"
+          {% endfor %}
+        command:
+          - /bin/bash
+          - -ec
+          - 'uvicorn run:app --host 0.0.0.0 --port 8000 --workers 1'
+
+        {% if livenessProbe %}
+        livenessProbe:
+          httpGet:
+            path: {{ livenessProbe["path"] }}
+            port: {{ livenessProbe["port"] }}
+            scheme: HTTP
+        {% endif %}
+
+        {% if readinessProbe %}
+        readinessProbe:
+          httpGet:
+            path: {{ readinessProbe["path"] }}
+            port: {{ readinessProbe["port"] }}
+            scheme: HTTP
+        {% endif %}
+
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            memory: {{ memory_requests }}
+            cpu: {{ cpu_requests }}
+          limits:
+            memory: {{ memory_limits }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ project_name }}
+  labels:
+    app: {{ project_name }}
+  annotations:
+    "manman/release": {{ manman_release }}
+spec:
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+  selector:
+    app: {{ project_name }}

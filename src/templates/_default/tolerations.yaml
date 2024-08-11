@@ -1,0 +1,12 @@
+_default: []
+sandbox:
+  - effect: NoExecute
+    key: dedicated
+    operator: Equal
+    value: sandbox
+
+production:
+    - effect: NoExecute
+      key: dedicated
+      operator: Equal
+      value: production
