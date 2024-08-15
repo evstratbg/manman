@@ -6,18 +6,14 @@ from croniter import croniter
 
 from pydantic import Field, BaseModel, field_validator
 
-from typing import TypeAlias, Union
 
-EnvValue: TypeAlias = Union[str, dict[str, str]]
-EnvironmentDict: TypeAlias = dict[str, EnvValue]
+EnvValue = str | dict[str, str]
+EnvironmentDict = dict[str, EnvValue]
 
 RAM_REGEX = "^[1-9][0-9]{0,3}[MG]i$"
 CPU_REGEX = "^[1-9][0-9]{0,4}m$"
 
-EnvironmentsEnum = Enum(
-    'EnvironmentsEnum',
-    {env.lower(): env.lower() for env in settings.ENVIRONMENTS}
-)
+EnvironmentsEnum = Enum("EnvironmentsEnum", {env.lower(): env.lower() for env in settings.ENVIRONMENTS})  # type: ignore[misc]
 
 
 def validate_autoscalers(values: dict[str, Any]) -> dict[str, Any]:
@@ -88,6 +84,7 @@ class ServerHorizontalPodAutoscaler(BaseHorizintalPodAutoscaler):
 
 
 class Metadata(BaseModel):
+    image: str
     project_id: int
     project_name: str
     current_env: EnvironmentsEnum
@@ -109,8 +106,8 @@ class Server(BaseModel):
     envs: dict[str, str | dict] | None
     hpa: ServerHorizontalPodAutoscaler | None
 
-    @field_validator("*", mode='before')
-    def check_autoscalers(cls, values: dict[str, Any]):  # noqa: N805
+    @field_validator("*", mode="before")
+    def check_autoscalers(cls, values: dict[str, Any]) -> dict[str, Any]:  # noqa: N805
         return validate_autoscalers(values)
 
 
@@ -129,7 +126,7 @@ class Cronjobs(BaseModel):
     envs: EnvironmentDict | None = None
 
     @field_validator("schedule")
-    def validate_schedule(cls, value: str | dict):
+    def validate_schedule(cls, value: str | dict) -> str | dict:  # noqa: N805
         if isinstance(value, str):
             if not croniter.is_valid(value):
                 raise ValueError("Invalid cron schedule")
@@ -140,14 +137,14 @@ class Cronjobs(BaseModel):
         return value
 
     @field_validator("name")
-    def validate_cronjob_name(cls, value: str):  # noqa: N805
+    def validate_cronjob_name(cls, value: str) -> str:  # noqa: N805
         pattern = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
         if re.match(pattern, value) is None:
             raise ValueError("Invalid cron name")
         return value
 
 
-class Workers(BaseModel):
+class Consumer(BaseModel):
     name: str
     enabled: bool | dict
     command: str
@@ -163,14 +160,14 @@ class Workers(BaseModel):
     requests: Requests
 
     @field_validator("name")
-    def validate_worker_name(cls, value: str):  # noqa: N805
+    def validate_consumer_name(cls, value: str) -> str:  # noqa: N805
         pattern = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
         if re.match(pattern, value) is None:
-            raise ValueError("Invalid worker name")
+            raise ValueError("Invalid consumer name")
         return value
 
-    @field_validator("*", mode='before')
-    def check_autoscalers(cls, values: dict[str, Any]):  # noqa: N805
+    @field_validator("*", mode="before")
+    def check_autoscalers(cls, values: dict[str, Any]) -> dict[str, Any]:  # noqa: N805
         return validate_autoscalers(values)
 
 
@@ -184,14 +181,17 @@ class Secrets(BaseModel):
     envs: EnvironmentDict | None = None
 
 
-class GenerationRequest(BaseModel):
+class DockerfileGenerationRequest(BaseModel):
     metadata: Metadata
     engine: Engine
+
+
+class ManifestGenerationRequest(DockerfileGenerationRequest):
     server: Server | None = None
-    db_migrations: list[DatabaseMigration] | None = None
-    cronjobs: list[Cronjobs] | None = None
-    workers: list[Workers] | None = None
-    secrets: Secrets | None
+    db_migrations: list[DatabaseMigration] | None = []
+    cronjobs: list[Cronjobs] | None = []
+    consumers: list[Consumer] | None = []
+    secrets: Secrets | None = None
 
     envs: EnvironmentDict | None = None
 

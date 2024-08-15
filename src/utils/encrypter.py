@@ -38,7 +38,7 @@ class AesEncoder:
         ct = encryptor.update(data) + encryptor.finalize()
         return binascii.hexlify(struct.pack("<H", 16) + iv + ct).decode()
 
-    def decrypt(self, data: bytes):
+    def decrypt(self, data: bytes) -> bytes:
         data = binascii.unhexlify(data)
         iv_size = struct.unpack("<H", data[:2])[0]
         iv = data[2 : 2 + iv_size]

@@ -38,12 +38,7 @@ def plain_text_exception_handler(_: Request, exc: Exception) -> Response:
 
 
 app = Litestar(
-    route_handlers=[
-        SystemController,
-        ManifestsController,
-        SecretsController,
-        DockerfilesController
-    ],
+    route_handlers=[SystemController, ManifestsController, SecretsController, DockerfilesController],
     openapi_config=OpenAPIConfig(
         title="ManMan API",
         version="0.1.0",

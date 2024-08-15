@@ -7,11 +7,7 @@ from src.utils.encrypter import AesEncoder
 
 
 class SecretsController(Controller):
-    @route(
-        path="/secrets/encrypt",
-        http_method=HttpMethod.POST,
-        tags=("Secrets",)
-    )
+    @route(path="/secrets/encrypt", http_method=HttpMethod.POST, tags=("Secrets",))
     async def encrypt_envs(self, data: SecretsEncryptRequest) -> Response:
         if not data.secret_key:
             secret_key = AesEncoder.generate_key()
@@ -22,10 +18,14 @@ class SecretsController(Controller):
             secret_key = data.secret_key
 
         encoder = AesEncoder(secret_key)
-        envs_with_encrypted_values = {}
-        for key, env_data in data.envs.items():
-            for env_name, value in env_data.items():
-                envs_with_encrypted_values.setdefault(key, {})[env_name] = encoder.encrypt(value.encode())
+        envs_with_encrypted_values: dict[str, dict[str, str]] = {}
+        for key, value in data.envs.items():
+            if isinstance(value, dict):
+                for env_name, env_value in value.items():
+                    envs_with_encrypted_values.setdefault(key, {})[env_name] = encoder.encrypt(env_value.encode())
+            else:
+                envs_with_encrypted_values.setdefault(key, {})["_default"] = encoder.encrypt(value.encode())
+
         content = yaml.dump(envs_with_encrypted_values)
         return Response(
             status_code=201,
