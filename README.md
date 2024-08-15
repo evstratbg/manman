@@ -27,7 +27,7 @@ templates
             - dockerfile.jinja
             - server.yaml.jinja
             - cronjobs.yaml.jinja
-            - workers.yaml.jinja
+            - consumers.yaml.jinja
             - db_migrations.yaml.jinja
 ```
 
@@ -87,10 +87,10 @@ cronjobs:
     _default: "* * * * *"
     dev: "0 1 * * *"
 
-workers:
-- name: my-best-worker
+consumers:
+- name: clickstream
   enabled: true
-  command: python run_worker.py main-worker
+  command: python run_consumer.py clickstream
   replicas: 1
   envs:
     POSTGRES_MAX_POOLSIZE: 1
@@ -100,7 +100,7 @@ workers:
     cpu: 256m
  
 db_migrations:
-- command: aerich upgrade
+- command: alembic upgrade
   envs:
     POSTGRES_MAX_POOLSIZE: 1
 ``` 
