@@ -4,7 +4,7 @@ from typing import Any
 from src.config import settings
 from croniter import croniter
 
-from pydantic import Field, BaseModel, field_validator
+from pydantic import Field, BaseModel, model_validator, field_validator
 
 
 EnvValue = str | dict[str, str]
@@ -95,26 +95,28 @@ class Metadata(BaseModel):
 
 class Server(BaseModel):
     replicas: int | dict | None = Field(
+        default=None,
         description="Number of replicas",
         gt=0,
     )
-    memory_limits: str | dict = Field(
+    memory_limits: str | dict | None = Field(
+        default=None,
         description="Memory limit for container",
         pattern=RAM_REGEX,
     )
-    requests: Requests
-    envs: dict[str, str | dict] | None
-    hpa: ServerHorizontalPodAutoscaler | None
+    requests: Requests = None
+    envs: dict[str, str | int | dict] | None = None
+    hpa: ServerHorizontalPodAutoscaler | None = None
 
-    @field_validator("*", mode="before")
+    @model_validator(mode="before")
     def check_autoscalers(cls, values: dict[str, Any]) -> dict[str, Any]:  # noqa: N805
         return validate_autoscalers(values)
 
 
 class Concurrency(str, Enum):
-    replace_ = "Replace"
-    forbid = "Forbid"
-    allow = "Allow"
+    replace_ = "replace"
+    forbid = "forbid"
+    allow = "allow"
 
 
 class Cronjobs(BaseModel):
@@ -182,7 +184,6 @@ class Secrets(BaseModel):
 
 
 class DockerfileGenerationRequest(BaseModel):
-    metadata: Metadata
     engine: Engine
 
 

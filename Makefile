@@ -12,7 +12,7 @@ all: test lint
 
 run_server:
 	@echo "$(GREEN)Starting the server...$(NC)"
-	@$(PYTHON) -m src.app.app
+	@$(PYTHON) -m src.app
 
 test:
 	@echo "$(GREEN)Running tests...$(NC)"

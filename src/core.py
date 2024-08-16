@@ -1,6 +1,5 @@
 import asyncio
 import copy
-from collections.abc import Awaitable
 from typing import Any
 
 import yaml
@@ -8,21 +7,35 @@ import logging
 from pathlib import Path
 from .exceptions import NoTemplateFound
 
-from .config import jinja_environment, settings, BASE_DIR
+from .config import jinja_environment, settings, TEMPLATES_DIR
 
-from .types import ManifestGenerationRequest, DatabaseMigration
+from .types import ManifestGenerationRequest
 from .utils.encrypter import AesEncoder
 
 logger = logging.getLogger(__name__)
 
 
 class Generator:
-    TEMPLATES_DIR = BASE_DIR / "templates"
-
-    def __init__(self, payload: ManifestGenerationRequest):
+    def __init__(
+            self,
+            payload: ManifestGenerationRequest,
+            image: str,
+            project_id: str,
+            project_name: str,
+            current_env: str,
+            team: str,
+            branch_name: str,
+            commit: str,
+    ):
         self.payload = payload
-        self.current_env = payload.metadata.current_env.value
-        self.team = payload.metadata.team
+        self.image = image
+        self.project_id = project_id
+        self.project_name = project_name
+        self.current_env = current_env
+        self.team = team
+        self.branch_name = branch_name
+        self.commit = commit
+
         self.language = payload.engine.language.name.lower()
 
         self.default_common_dir = Path("_default")
@@ -30,7 +43,7 @@ class Generator:
         self.target_lang_dir = Path(self.team) / self.language
 
         self._default_folders = [
-            self.default_common_dir / self.language,
+            self.default_common_dir,
             self._default_team_dir,
             self.target_lang_dir,
         ]
@@ -43,11 +56,13 @@ class Generator:
         template_path = Path()
         for folder in self._default_folders:
             path = folder / file_name
-            full_path = self.TEMPLATES_DIR / path
+            full_path = TEMPLATES_DIR / path
             if full_path.exists():
                 template_path = path
-        if not template_path:
-            raise NoTemplateFound(status_code=400, detail=f"No {file_name} found for team `{self.team}`")
+        if template_path == Path():
+            raise NoTemplateFound(
+                status_code=400,
+                detail=f"No {file_name} template found for team `{self.team}` and engine `{self.language}`", )
         return template_path.as_posix()
 
     def get_current_envs(self, envs: dict) -> dict[str, Any]:
@@ -82,8 +97,8 @@ class Generator:
     @property
     def predefined_envs(self) -> dict[str, str]:
         return {
-            "CURRENT_ENV": self.payload.metadata.current_env.value,
-            "COMMIT": self.payload.metadata.commit,
+            "CURRENT_ENV": self.current_env,
+            "COMMIT": self.commit,
         }
 
     def add_secret_values(self) -> dict[str, str]:
@@ -101,30 +116,33 @@ class Generator:
                 self.environment_variables[key] = decrypted_value.decode()
         return self.environment_variables
 
-    def get_migration_manifest_task(self, migration: DatabaseMigration) -> list[Awaitable]:
+    def get_migration_manifest_task(self) -> list[Any]:
         migration_template_path = self.get_template_path("migration.yaml.jinja2")
         migration_template = jinja_environment.get_template(
             migration_template_path,
         )
 
-        migration_envs = copy.deepcopy(self.environment_variables)
-        migration_envs.update(self.get_current_envs(migration.envs or {}))
-
-        return [
-            migration_template.render_async(
-                image=self.payload.metadata.image,
-                project_name=self.payload.metadata.project_name,
-                current_env=self.payload.metadata.current_env.value,
-                tolerations=self.tolerations,
-                affinity=self.affinity,
-                command=self.get_value(migration.command),
-                envs=migration_envs,
-                manman_release=settings.RELEASE,
-                branch_name=self.payload.metadata.branch_name,
-                commit=self.payload.metadata.commit,
-                team=self.team,
-            ),
-        ]
+        migration_tasks = []
+        db_migrations = self.payload.db_migrations or []
+        for migration in db_migrations:
+            migration_envs = copy.deepcopy(self.environment_variables)
+            migration_envs.update(self.get_current_envs(migration.envs or {}))
+            migration_tasks.append(
+                migration_template.render_async(
+                    image=self.image,
+                    project_name=self.project_name,
+                    current_env=self.current_env,
+                    tolerations=self.tolerations,
+                    affinity=self.affinity,
+                    command=self.get_value(migration.command),
+                    envs=migration_envs,
+                    manman_release=settings.RELEASE,
+                    branch_name=self.branch_name,
+                    commit=self.commit,
+                    team=self.team,
+                ),
+            )
+        return migration_tasks
 
     def get_server_manifest_task(self) -> list[Any]:
         deployment_template_path = self.get_template_path("server.yaml.jinja2")
@@ -141,20 +159,20 @@ class Generator:
         is_hpa_enabled = server.hpa is not None
         return [
             deployment_template.render_async(
-                image=self.payload.metadata.image,
+                image=self.image,
                 replicas=self.get_value(server.replicas),
-                project_name=self.payload.metadata.project_name,
+                project_name=self.project_name,
                 is_hpa_enabled=is_hpa_enabled,
-                current_env=self.payload.metadata.current_env.value,
+                current_env=self.current_env,
                 tolerations=self.tolerations,
                 affinity=self.affinity,
                 envs=server_envs,
                 memory_limits=self.get_value(server.memory_limits),
                 memory_requests=self.get_value(server.requests.memory),
                 cpu_requests=self.get_value(server.requests.cpu),
-                helmgen_release=settings.RELEASE,
-                branch_name=self.payload.metadata.branch_name,
-                commit=self.payload.metadata.commit,
+                manman_release=settings.RELEASE,
+                branch_name=self.branch_name,
+                commit=self.commit,
                 team=self.team,
             ),
         ]
@@ -171,10 +189,10 @@ class Generator:
         server_hpa = self.payload.server.hpa
         return [
             server_hpa_template.render_async(
-                project_name=self.payload.metadata.project_name,
+                project_name=self.project_name,
                 min_replicas=self.get_value(server_hpa.min_replicas),
                 max_replicas=self.get_value(server_hpa.max_replicas),
-                target_cpu_utilization_percenage=self.get_value(
+                target_cpu_utilization_percentage=self.get_value(
                     server_hpa.target_cpu_utilization_percent,
                 ),
             ),
@@ -199,9 +217,9 @@ class Generator:
 
             cronjob_manifests_tasks.append(
                 cronjob_template.render_async(
-                    image=self.payload.metadata.image,
-                    project_name=self.payload.metadata.project_name,
-                    current_env=self.payload.metadata.current_env.value,
+                    image=self.image,
+                    project_name=self.project_name,
+                    current_env=self.current_env.value,
                     tolerations=self.tolerations,
                     affinity=self.affinity,
                     command=cronjob.command,
@@ -209,9 +227,9 @@ class Generator:
                     name=cronjob.name,
                     schedule=self.get_value(cronjob.schedule),
                     concurrency=cronjob.concurrency.value,
-                    helmgen_release=settings.RELEASE,
-                    branch_name=self.payload.metadata.branch_name,
-                    commit=self.payload.metadata.commit,
+                    manman_release=settings.RELEASE,
+                    branch_name=self.branch_name,
+                    commit=self.commit,
                     team=self.team,
                 ),
             )
@@ -235,9 +253,9 @@ class Generator:
 
             consumer_manifest_tasks.append(
                 consumers_template.render_async(
-                    image=self.payload.metadata.image,
-                    project_name=self.payload.metadata.project_name,
-                    current_env=self.payload.metadata.current_env.value,
+                    image=self.image,
+                    project_name=self.project_name,
+                    current_env=self.current_env.value,
                     tolerations=self.tolerations,
                     affinity=self.affinity,
                     envs=worker_envs,
@@ -248,8 +266,8 @@ class Generator:
                     memory_requests=self.get_value(consumer.requests.memory),
                     cpu_requests=self.get_value(consumer.requests.cpu),
                     manman_release=settings.RELEASE,
-                    branch_name=self.payload.metadata.branch_name,
-                    commit=self.payload.metadata.commit,
+                    branch_name=self.branch_name,
+                    commit=self.commit,
                     team=self.team,
                 ),
             )
@@ -260,11 +278,7 @@ class Generator:
         self.add_secret_values()
         manifest_tasks = []
 
-        db_migrations = self.payload.db_migrations or []
-        for migration in db_migrations:
-            manifest_tasks.append(
-                self.get_migration_manifest_task(migration=migration),
-            )
+        manifest_tasks.extend(self.get_migration_manifest_task())
         manifest_tasks.extend(self.get_server_manifest_task())
         manifest_tasks.extend(self.get_server_hpa_manifest_task())
         manifest_tasks.extend(self.get_cronjob_manifest_task())
@@ -282,5 +296,6 @@ class Generator:
             additional_system_packages=" ".join(
                 self.payload.engine.additional_system_packages,
             ),
-            package_manager_version=self.payload.engine.package_manager,
+            package_manager=self.payload.engine.package_manager.name,
+            package_manager_version=self.payload.engine.package_manager.version,
         )

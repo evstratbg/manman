@@ -66,7 +66,7 @@ server:
   envs:
     LOG_LEVEL: INFO
     POSTGRES_MAX_POOLSIZE: 10
-    POSTGRES_PASSWORD: vault://my-secret
+    POSTGRES_PASSWORD: my-secret
 envs:
   POSTGRES_MAX_POOLSIZE: 5
 

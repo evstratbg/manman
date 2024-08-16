@@ -1,27 +1,25 @@
 from pathlib import Path
-
-from jinja2 import Environment, FileSystemLoader, select_autoescape, StrictUndefined
-from pydantic_settings import BaseSettings
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import orjson
 
-BASE_DIR = Path(__file__).parent.resolve()
+BASE_DIR = Path(__file__).parent.parent.resolve()
+TEMPLATES_DIR = BASE_DIR / "templates"
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env")
+
     RELEASE: str
-    VAULT_TOKEN: str = ""
-    VAULT_BASE_URL: str | None
 
     ENVIRONMENTS: list[str]
 
 
 settings = Settings()
 
-
 jinja_environment = Environment(
-    loader=FileSystemLoader(BASE_DIR / "templates"),
+    loader=FileSystemLoader(TEMPLATES_DIR),
     enable_async=True,
-    undefined=StrictUndefined,
     autoescape=select_autoescape(),
 )
 jinja_environment.filters["jsonify"] = lambda x: orjson.dumps(x).decode()
