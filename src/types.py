@@ -3,15 +3,22 @@ from enum import Enum
 from typing import Any
 from src.config import settings
 from croniter import croniter
+from .exceptions import ImproperConfig
 
 from pydantic import Field, BaseModel, model_validator, field_validator
 
 
-EnvValue = str | dict[str, str]
-EnvironmentDict = dict[str, EnvValue]
+EnvValue = str | int
+EnvironmentValue = dict[str, EnvValue] | EnvValue
+EnvironmentDict = dict[str, EnvironmentValue]
+
 
 RAM_REGEX = "^[1-9][0-9]{0,3}[MG]i$"
 CPU_REGEX = "^[1-9][0-9]{0,4}m$"
+
+RAM_REGEX_COMPILED = re.compile(RAM_REGEX)
+CPU_REGEX_COMPILED = re.compile(CPU_REGEX)
+
 
 EnvironmentsEnum = Enum("EnvironmentsEnum", {env.lower(): env.lower() for env in settings.ENVIRONMENTS})  # type: ignore[misc]
 
@@ -21,13 +28,13 @@ def validate_autoscalers(values: dict[str, Any]) -> dict[str, Any]:
     replicas_specified = values.get("replicas") is not None
 
     if hpa_specified and replicas_specified:
-        raise ValueError(
+        raise ImproperConfig(
             "Incompatible configuration: When using HPA, "
             "you cannot manually set the number of replicas. Please remove the replicas setting or disable HPA.",
         )
 
     if not hpa_specified and not replicas_specified:
-        raise ValueError(
+        raise ImproperConfig(
             "Insufficient scaling information: You need to either specify a fixed "
             "number of replicas or configure HPA. Please add one of these parameters to your configuration.",
         )
@@ -52,27 +59,32 @@ class Engine(BaseModel):
 
 
 class Requests(BaseModel):
-    memory: str | dict = Field(
-        description="Memory limit for container",
-        pattern=RAM_REGEX,
-    )
-    cpu: str | dict = Field(
-        description="CPU requests for container",
-        pattern=CPU_REGEX,
-    )
+    memory: str | dict
+    cpu: str | dict
+
+    @model_validator(mode="before")
+    def check_cpu_and_memory(cls, values: str | dict) -> str | dict:  # noqa: N805
+        memory = values["memory"]
+        cpu = values["cpu"]
+
+        if isinstance(memory, str):
+            memory = {"_default": memory}
+        for value in memory.values():
+            if not RAM_REGEX_COMPILED.match(value):
+                raise ImproperConfig("Invalid RAM limit")
+
+        if isinstance(cpu, str):
+            cpu = {"_default": cpu}
+        for value in cpu.values():
+            if not CPU_REGEX_COMPILED.match(value):
+                raise ImproperConfig("Invalid RAM limit")
+
+        return values
 
 
 class BaseHorizintalPodAutoscaler(BaseModel):
-    min_replicas: int | dict = Field(
-        description="Minimum amount of deployment replicas",
-        gt=0,
-        le=5,
-    )
-    max_replicas: int | dict = Field(
-        description="Maximum amount of deployment replicas",
-        gt=0,
-        le=5,
-    )
+    min_replicas: int | dict
+    max_replicas: int | dict
 
 
 class ServerHorizontalPodAutoscaler(BaseHorizintalPodAutoscaler):
@@ -94,16 +106,8 @@ class Metadata(BaseModel):
 
 
 class Server(BaseModel):
-    replicas: int | dict | None = Field(
-        default=None,
-        description="Number of replicas",
-        gt=0,
-    )
-    memory_limits: str | dict | None = Field(
-        default=None,
-        description="Memory limit for container",
-        pattern=RAM_REGEX,
-    )
+    replicas: int | dict | None = None
+    memory_limits: str | dict | None = None
     requests: Requests = None
     envs: dict[str, str | int | dict] | None = None
     hpa: ServerHorizontalPodAutoscaler | None = None
@@ -131,18 +135,17 @@ class Cronjobs(BaseModel):
     def validate_schedule(cls, value: str | dict) -> str | dict:  # noqa: N805
         if isinstance(value, str):
             if not croniter.is_valid(value):
-                raise ValueError("Invalid cron schedule")
+                raise ImproperConfig("Invalid cron schedule")
         else:
             for env, v in value.items():
                 if not croniter.is_valid(v):
-                    raise ValueError(f"Invalid cron schedule for env `{env}`")
+                    raise ImproperConfig(f"Invalid cron schedule for env `{env}`")
         return value
 
     @field_validator("name")
     def validate_cronjob_name(cls, value: str) -> str:  # noqa: N805
-        pattern = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
-        if re.match(pattern, value) is None:
-            raise ValueError("Invalid cron name")
+        if not re.match(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$', value):
+            raise ImproperConfig("Invalid cron name")
         return value
 
 
@@ -150,25 +153,19 @@ class Consumer(BaseModel):
     name: str
     enabled: bool | dict
     command: str
-    replicas: int | dict | None = Field(
-        description="Number of replicas",
-        gt=0,
-    )
-    envs: dict[str, str | dict] | None
-    memory_limits: str | dict = Field(
-        description="Memory limit for container",
-        pattern=RAM_REGEX,
-    )
-    requests: Requests
+    replicas: int | dict
+    envs: EnvironmentDict | None = None
+    memory_limits: str | dict | None = None
+    requests: Requests | None = None
 
     @field_validator("name")
     def validate_consumer_name(cls, value: str) -> str:  # noqa: N805
         pattern = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
         if re.match(pattern, value) is None:
-            raise ValueError("Invalid consumer name")
+            raise ImproperConfig("Invalid consumer name")
         return value
 
-    @field_validator("*", mode="before")
+    @model_validator(mode="before")
     def check_autoscalers(cls, values: dict[str, Any]) -> dict[str, Any]:  # noqa: N805
         return validate_autoscalers(values)
 
@@ -179,7 +176,6 @@ class DatabaseMigration(BaseModel):
 
 
 class Secrets(BaseModel):
-    key: str
     envs: EnvironmentDict | None = None
 
 

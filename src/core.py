@@ -26,6 +26,7 @@ class Generator:
             team: str,
             branch_name: str,
             commit: str,
+            secret_key: str,
     ):
         self.payload = payload
         self.image = image
@@ -35,6 +36,7 @@ class Generator:
         self.team = team
         self.branch_name = branch_name
         self.commit = commit
+        self.secret_key = secret_key
 
         self.language = payload.engine.language.name.lower()
 
@@ -110,7 +112,7 @@ class Generator:
             for key, encrypted_value in encrypted_secrets.items():
                 encrypted_value_str = str(self.get_value(encrypted_value))
                 decrypted_value = AesEncoder(
-                    self.payload.secrets.key.encode(),
+                    self.secret_key.encode(),
                 ).decrypt(encrypted_value_str.encode())
 
                 self.environment_variables[key] = decrypted_value.decode()
@@ -219,14 +221,14 @@ class Generator:
                 cronjob_template.render_async(
                     image=self.image,
                     project_name=self.project_name,
-                    current_env=self.current_env.value,
+                    current_env=self.current_env,
                     tolerations=self.tolerations,
                     affinity=self.affinity,
                     command=cronjob.command,
                     envs=cronjob_envs,
                     name=cronjob.name,
                     schedule=self.get_value(cronjob.schedule),
-                    concurrency=cronjob.concurrency.value,
+                    concurrency=cronjob.concurrency.value.upper(),
                     manman_release=settings.RELEASE,
                     branch_name=self.branch_name,
                     commit=self.commit,
@@ -255,7 +257,7 @@ class Generator:
                 consumers_template.render_async(
                     image=self.image,
                     project_name=self.project_name,
-                    current_env=self.current_env.value,
+                    current_env=self.current_env,
                     tolerations=self.tolerations,
                     affinity=self.affinity,
                     envs=worker_envs,
@@ -288,7 +290,7 @@ class Generator:
         return list(res)
 
     async def generate_dockerfile(self) -> str:
-        dockerfile_path = self.get_template_path("dockerfile.jinja")
+        dockerfile_path = self.get_template_path("dockerfile.jinja2")
         dockerfile_template = jinja_environment.get_template(dockerfile_path)
         return await dockerfile_template.render_async(
             language=self.payload.engine.language.name,

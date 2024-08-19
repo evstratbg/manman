@@ -6,6 +6,6 @@ class NoTemplateFound(HTTPException):
     detail = "No jinja template found for"
 
 
-class ImproperVaultConfig(HTTPException):
-    status_code = 500
-    detail = "Need to provide vault configuration for requesting vault secrets"
+class ImproperConfig(HTTPException):
+    status_code = 400
+    detail = "Improper configuration"
