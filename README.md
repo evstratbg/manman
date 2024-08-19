@@ -1,6 +1,6 @@
 # manman
 
-manman is a web server, designed for centralized management of dockerfiles and k8s manifests.
+ManMan, manifest manager, is a web server, designed for centralized management of dockerfiles and k8s manifests.
 
 It allows you to create dockerfiles templates and kubernetes manifests for your teams and manage them in a centralized way
 
@@ -539,3 +539,10 @@ cat secret-values.yaml | sed 's/^/  /' >> app.yaml
 ```
 
 And on deploy stage, add `x-secret-key` header, so manman, can decrypt the values.
+
+
+# QnA
+
+Q: What if I want to include additional resources like RBAC or Ingress or SA into a release?
+A: ManMan just generates the manifests, based on the repo config file and nothing stops you from adding additional resources to the release manually. 
+Just keep all extra resources in the `.helm/templates` as usual and keep an eye not to overwrite a file with the `curl` response from manifests generation request to ManMan 
