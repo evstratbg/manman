@@ -146,59 +146,62 @@ class Generator:
             )
         return migration_tasks
 
-    def get_server_manifest_task(self) -> list[Any]:
+    def get_servers_manifest_task(self) -> list[Any]:
         deployment_template_path = self.get_template_path("server.yaml.jinja2")
         deployment_template = jinja_environment.get_template(
             deployment_template_path,
         )
 
-        server = self.payload.server
-        if not server:
-            return []
+        servers_tasks = []
 
-        server_envs = copy.deepcopy(self.environment_variables)
-        server_envs.update(self.get_current_envs(server.envs or {}))
-        is_hpa_enabled = server.hpa is not None
-        return [
-            deployment_template.render_async(
-                image=self.image,
-                replicas=self.get_value(server.replicas),
-                project_name=self.project_name,
-                is_hpa_enabled=is_hpa_enabled,
-                current_env=self.current_env,
-                tolerations=self.tolerations,
-                affinity=self.affinity,
-                envs=server_envs,
-                memory_limits=self.get_value(server.memory_limits),
-                memory_requests=self.get_value(server.requests.memory),
-                cpu_requests=self.get_value(server.requests.cpu),
-                manman_release=settings.RELEASE,
-                branch_name=self.branch_name,
-                commit=self.commit,
-                team=self.team,
-            ),
-        ]
+        servers = self.payload.servers or []
 
-    def get_server_hpa_manifest_task(self) -> list[Any]:
-        server_hpa_template_path = self.get_template_path("server_hpa.yaml.jinja2")
-        server_hpa_template = jinja_environment.get_template(
-            server_hpa_template_path,
-        )
-
-        if not self.payload.server or not self.payload.server.hpa:
-            return []
-
-        server_hpa = self.payload.server.hpa
-        return [
-            server_hpa_template.render_async(
-                project_name=self.project_name,
-                min_replicas=self.get_value(server_hpa.min_replicas),
-                max_replicas=self.get_value(server_hpa.max_replicas),
-                target_cpu_utilization_percentage=self.get_value(
-                    server_hpa.target_cpu_utilization_percent,
+        for server in servers:
+            server_envs = copy.deepcopy(self.environment_variables)
+            server_envs.update(self.get_current_envs(server.envs or {}))
+            is_hpa_enabled = server.hpa is not None
+            is_server_enabled = self.get_value(server.enabled)
+            if not is_server_enabled:
+                continue
+            # server manifest
+            servers_tasks.append(
+                deployment_template.render_async(
+                    name=server.name,
+                    command=server.command,
+                    image=self.image,
+                    replicas=self.get_value(server.replicas),
+                    project_name=self.project_name,
+                    is_hpa_enabled=is_hpa_enabled,
+                    current_env=self.current_env,
+                    tolerations=self.tolerations,
+                    affinity=self.affinity,
+                    envs=server_envs,
+                    memory_limits=self.get_value(server.memory_limits),
+                    memory_requests=self.get_value(server.requests.memory),
+                    cpu_requests=self.get_value(server.requests.cpu),
+                    manman_release=settings.RELEASE,
+                    branch_name=self.branch_name,
+                    commit=self.commit,
+                    team=self.team,
                 ),
-            ),
-        ]
+            )
+            if is_hpa_enabled:
+                server_hpa_template_path = self.get_template_path("server_hpa.yaml.jinja2")
+                server_hpa_template = jinja_environment.get_template(
+                    server_hpa_template_path,
+                )
+                # hpa manifest
+                servers_tasks.append(
+                    server_hpa_template.render_async(
+                        project_name=self.project_name,
+                        min_replicas=self.get_value(server.hpa.min_replicas),
+                        max_replicas=self.get_value(server.hpa.max_replicas),
+                        target_cpu_utilization_percentage=self.get_value(
+                            server.hpa.target_cpu_utilization_percent,
+                        ),
+                    ),
+                )
+        return servers_tasks
 
     def get_cronjob_manifest_task(self) -> list[Any]:
         cronjob_manifests_tasks = []
@@ -281,8 +284,7 @@ class Generator:
         manifest_tasks = []
 
         manifest_tasks.extend(self.get_migration_manifest_task())
-        manifest_tasks.extend(self.get_server_manifest_task())
-        manifest_tasks.extend(self.get_server_hpa_manifest_task())
+        manifest_tasks.extend(self.get_servers_manifest_task())
         manifest_tasks.extend(self.get_cronjob_manifest_task())
         manifest_tasks.extend(self.get_consumers_manifest_task())
 

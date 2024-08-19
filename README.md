@@ -53,7 +53,10 @@ envs:
   POSTGRES_MAX_POOLSIZE: 5
   
   
-server:
+servers:
+- command: python run_server.py
+  name: API
+  enabled: true
   replicas: 
     _default: 1
     production: 2
@@ -120,9 +123,15 @@ Lets break it down:
 
 Optional, supports `_default`. Environment variables that will be inherited by every k8s manifest. 
 
-### server
+### servers
 
-Optional, defines the server deployment settings
+Optional, defines the servers deployment settings
+
+`command`, *mandatory*, defines the command that should be executed to start the server
+
+`enabled`, *mandatory*, supports `_default`. Defines if the server is enabled.
+
+`name`, *mandatory*, defines the name of the server
 
 `replicas`, *optional*, supports `_default`. Defines the number of replicas for the server deployment. Cant be used if `server.hpa` is specified
 
@@ -152,11 +161,11 @@ Optional, defines the server deployment settings
 
 Optional, defines a list of cronjobs settings
 
-`command`, *mandatory*, defines the command that should be executed by the cronjob
-
 `envs`, *optional*, supports `_default`. Defines the environment variables. Overwrites keys from the global `env` section if intersected.
 
 `concurrency`, *mandatory*, defines the concurrency policy for the cronjob. Possible values: `allow`, `forbid`, `replace`
+
+`command`, *mandatory*, defines the command that should be executed by the cronjob
 
 `enabled`, *mandatory*, supports `_default`. Defines if the cronjob is enabled.
 
@@ -305,6 +314,8 @@ mandatory filename: `server.yaml.jinja2`
 set of available variables:
 
 - {{image}}
+- {{name}}
+- {{command}}
 - {{replicas}}
 - {{project_name}}
 - {{is_hpa_enabled}}

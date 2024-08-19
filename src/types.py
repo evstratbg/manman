@@ -106,6 +106,9 @@ class Metadata(BaseModel):
 
 
 class Server(BaseModel):
+    command: str
+    name: str
+    enabled: bool | dict
     replicas: int | dict | None = None
     memory_limits: str | dict | None = None
     requests: Requests = None
@@ -126,8 +129,8 @@ class Concurrency(str, Enum):
 class Cronjobs(BaseModel):
     concurrency: Concurrency
     command: str
-    enabled: bool | dict
     name: str
+    enabled: bool | dict
     schedule: str | dict
     envs: EnvironmentDict | None = None
 
@@ -184,7 +187,7 @@ class DockerfileGenerationRequest(BaseModel):
 
 
 class ManifestGenerationRequest(DockerfileGenerationRequest):
-    server: Server | None = None
+    servers: list[Server] | None = None
     db_migrations: list[DatabaseMigration] | None = []
     cronjobs: list[Cronjobs] | None = []
     consumers: list[Consumer] | None = []
