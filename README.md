@@ -4,14 +4,16 @@ manman is a web server, designed for centralized management of dockerfiles and k
 
 It allows you to create dockerfiles templates and kubernetes manifests for your teams and manage them in a centralized way
 
+## Motivation
+
+Having dockerfiles and deploy manifests
+
 ## Before you start
 
 `manman API` has the following endpoints:
 - `/manifests/generate` - to generate k8s manifests
 - `/dockerfiles/generate` - to generate dockerfiles
 - `/secrets/encrypt` - to encrypt secret values
-
-Swagger is available at `/docs`
 
 ----
 `templates` dir should contain the following structure, but `_default` folder is optional:

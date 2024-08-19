@@ -17,10 +17,8 @@ class ManifestsController(Controller):
             team: Annotated[str, Parameter(header="x-team")],
             branch_name: Annotated[str, Parameter(header="x-branch-name")],
             commit: Annotated[str, Parameter(header="x-commit-hash")],
-            # data: ManifestGenerationRequest,
             request: Request
     ) -> Response:
-         # or accept json??
         data = await request.json()
         try:
             data = ManifestGenerationRequest(**(data or {}))

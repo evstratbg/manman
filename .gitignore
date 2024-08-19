@@ -171,4 +171,3 @@ populate_vars.sh
 bandit.yml
 *.tgz
 certs/
-data/
