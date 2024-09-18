@@ -114,9 +114,13 @@ Lets break it down:
 ### engine
 
 `language.name`, *mandatory*, defines the language used in the project
+
 `language.version`, *mandatory*, defines the version of the language used in the project
+
 `package_manager.name`, *optional*, defines the package manager used in the project
+
 `package_manager.version`, *optional*, defines the version of the package manager used in the project
+
 `additional_system_packages`, *optional*, defines the additional system packages that should be installed in the dockerfile
 
 ### envs
@@ -544,5 +548,6 @@ And on deploy stage, add `x-secret-key` header, so manman, can decrypt the value
 # QnA
 
 Q: What if I want to include additional resources like RBAC or Ingress or SA into a release?
+
 A: ManMan just generates the manifests, based on the repo config file and nothing stops you from adding additional resources to the release manually. 
 Just keep all extra resources in the `.helm/templates` as usual and keep an eye not to overwrite a file with the `curl` response from manifests generation request to ManMan 
