@@ -1,0 +1,15 @@
+# Example dockerfile template (Go text/template syntax).
+FROM {{ .language }}:{{ .version }}
+
+{{- if .additional_system_packages }}
+RUN apt-get update && apt-get install -y {{ .additional_system_packages }} && rm -rf /var/lib/apt/lists/*
+{{- end }}
+
+{{- if .package_manager }}
+RUN python -m pip install {{ .package_manager }}=={{ .package_manager_version }}
+{{- end }}
+
+WORKDIR /app
+COPY . /app
+
+CMD ["python", "-m", "app"]
