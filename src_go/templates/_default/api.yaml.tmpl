@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .project_name }}-{{ .name }}
+  labels:
+    app: {{ .project_name }}
+    component: {{ .name }}
+    team: {{ .team }}
+    branch: {{ .branch_name }}
+    commit: {{ .commit }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      app: {{ .project_name }}
+      component: {{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .project_name }}
+        component: {{ .name }}
+        team: {{ .team }}
+    spec:
+      {{- if .tolerations }}
+      tolerations: {{ jsonify .tolerations }}
+      {{- end }}
+      {{- if .affinity }}
+      affinity: {{ jsonify .affinity }}
+      {{- end }}
+      containers:
+        - name: {{ .name }}
+          image: {{ .image }}
+          command: ["/bin/sh", "-c", "{{ .command }}"]
+          env:
+          {{- range $key, $val := .envs }}
+            - name: {{ $key }}
+              value: "{{ $val }}"
+          {{- end }}
+          {{- if or .memory_limits .memory_requests .cpu_requests }}
+          resources:
+            {{- if .memory_limits }}
+            limits:
+              memory: "{{ .memory_limits }}"
+            {{- end }}
+            {{- if or .memory_requests .cpu_requests }}
+            requests:
+              {{- if .memory_requests }}
+              memory: "{{ .memory_requests }}"
+              {{- end }}
+              {{- if .cpu_requests }}
+              cpu: "{{ .cpu_requests }}"
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 8000
+---

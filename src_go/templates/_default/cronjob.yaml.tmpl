@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .project_name }}-{{ .name }}
+  labels:
+    team: {{ .team }}
+spec:
+  schedule: "{{ .schedule }}"
+  concurrencyPolicy: {{ .concurrency }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          {{- if .tolerations }}tolerations: {{ jsonify .tolerations }}{{ end }}
+          {{- if .affinity }}affinity: {{ jsonify .affinity }}{{ end }}
+          containers:
+            - name: {{ .name }}
+              image: {{ .image }}
+              command: ["/bin/sh", "-c", "{{ .command }}"]
+              env:
+              {{- range $key, $val := .envs }}
+                - name: {{ $key }}
+                  value: "{{ $val }}"
+              {{- end }}
+---

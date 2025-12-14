@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .project_name }}-migration
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      {{- if .tolerations }}tolerations: {{ jsonify .tolerations }}{{ end }}
+      {{- if .affinity }}affinity: {{ jsonify .affinity }}{{ end }}
+      containers:
+        - name: migration
+          image: {{ .image }}
+          command: ["/bin/sh", "-c", "{{ .command }}"]
+          env:
+          {{- range $key, $val := .envs }}
+            - name: {{ $key }}
+              value: "{{ $val }}"
+          {{- end }}
+---
