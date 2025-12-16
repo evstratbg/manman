@@ -11,7 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [amd64, arm64]
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,21 +39,30 @@ jobs:
         working-directory: .
         run: go test ./...
 
-      - name: Build ${{ matrix.arch }}
+      - name: Prepare binary name
+        id: names
+        run: |
+          ext=""
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            ext=".exe"
+          fi
+          echo "binary=manman-${{ matrix.os }}-${{ matrix.arch }}${ext}" >> "$GITHUB_OUTPUT"
+
+      - name: Build ${{ matrix.os }}-${{ matrix.arch }}
         working-directory: .
         env:
-          GOOS: linux
+          GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 0
         run: |
           mkdir -p dist
-          go build -o dist/manman-${{ matrix.arch }} ./cmd/manman
+          go build -o "dist/${{ steps.names.outputs.binary }}" ./cmd/manman
 
-      - name: Upload artifact ${{ matrix.arch }}
+      - name: Upload artifact ${{ matrix.os }}-${{ matrix.arch }}
         uses: actions/upload-artifact@v4
         with:
-          name: manman-linux-${{ matrix.arch }}
-          path: dist/manman-${{ matrix.arch }}
+          name: ${{ steps.names.outputs.binary }}
+          path: dist/${{ steps.names.outputs.binary }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
@@ -55,10 +74,15 @@ jobs:
         with:
           path: dist
 
+      - name: Collect binaries
+        run: |
+          mkdir -p release
+          find dist -maxdepth 2 -type f -exec mv {} release/ \;
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/manman-*
+          files: release/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
