@@ -5,8 +5,8 @@
 .env
 
 # Go build cache / output
-src_go/.gocache
-src_go/dist
+.gocache
+dist
 
 # Editors
 .vscode/
