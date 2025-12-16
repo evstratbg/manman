@@ -22,15 +22,15 @@ jobs:
           go-version: "1.23.x"
 
       - name: Download deps
-        working-directory: src_go
+        working-directory: .
         run: go mod download
 
       - name: Test
-        working-directory: src_go
+        working-directory: .
         run: go test ./...
 
       - name: Build ${{ matrix.arch }}
-        working-directory: src_go
+        working-directory: .
         env:
           GOOS: linux
           GOARCH: ${{ matrix.arch }}
@@ -43,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: manman-linux-${{ matrix.arch }}
-          path: src_go/dist/manman-${{ matrix.arch }}
+          path: dist/manman-${{ matrix.arch }}
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
