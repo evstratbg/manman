@@ -42,6 +42,13 @@ type API struct {
 	Requests     *Requests         `yaml:"requests"`
 	Envs         map[string]any    `yaml:"envs"`
 	HPA          *HPA              `yaml:"hpa"`
+	Ingress      *Ingress          `yaml:"ingress"`
+}
+
+// Ingress describes optional ingress configuration for an API.
+type Ingress struct {
+	Domain        any `yaml:"domain"`
+	ProxyBodySize any `yaml:"proxy-body-size"`
 }
 
 // Cronjob describes cron job configuration.

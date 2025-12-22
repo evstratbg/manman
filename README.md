@@ -44,6 +44,7 @@
 - `worker.yaml.tmpl`
 - `migration.yaml.tmpl`
 - `tolerations.yaml`, `affinity.yaml`
+- `ingress.yaml.tmpl` (опциональный ingress для API)
 
 Можно создать `myteam/_default` или `myteam/python` и положить туда файлы с теми же именами — они перекроют `_default`.
 
@@ -85,6 +86,15 @@ cronjobs:
     name: sample
     enabled: true
     schedule: "*/5 * * * *"
+
+  - name: api
+    command: ./server
+    enabled: true
+    ingress:
+      domain:
+        _default: api.dev.example.com
+        production: api.example.com
+      proxy-body-size: 70M
 ```
 
 ## Секреты

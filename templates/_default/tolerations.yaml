@@ -1,2 +1,1 @@
-_default:
-  tolerations: []
+_default: []

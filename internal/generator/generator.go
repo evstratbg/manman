@@ -204,6 +204,12 @@ func (g *Generator) renderApis() ([]string, error) {
 		hpaPath = ""
 	}
 
+	var ingressPath string
+	ingressPath, err = g.findTemplate("ingress.yaml.tmpl")
+	if err != nil {
+		ingressPath = ""
+	}
+
 	var manifests []string
 	for _, api := range g.manifest.Apis {
 		if !resolveBool(api.Enabled, g.currentEnv) {
@@ -257,6 +263,23 @@ func (g *Generator) renderApis() ([]string, error) {
 				return nil, err
 			}
 			manifests = append(manifests, hpaOut)
+		}
+
+		if api.Ingress != nil && ingressPath != "" {
+			domain := resolveForEnv(api.Ingress.Domain, g.currentEnv)
+			if domain != nil && fmt.Sprint(domain) != "" {
+				ingressCtx := map[string]any{
+					"name":             api.Name,
+					"project_name":     g.projectName,
+					"domain":           domain,
+					"proxy_body_size":  resolveForEnv(api.Ingress.ProxyBodySize, g.currentEnv),
+				}
+				ingressOut, err := g.render(ingressPath, ingressCtx)
+				if err != nil {
+					return nil, err
+				}
+				manifests = append(manifests, ingressOut)
+			}
 		}
 	}
 
