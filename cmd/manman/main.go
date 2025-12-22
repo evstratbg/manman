@@ -54,7 +54,7 @@ func main() {
 		log.Fatalf("unsupported mode %q, use helm or dockerfile", mode)
 	}
 
-	manifest, err := config.LoadManifest(appPath)
+	manifest, err := config.LoadManifest(appPath, currentEnv)
 	if err != nil {
 		log.Fatalf("failed to load manifest: %v", err)
 	}
