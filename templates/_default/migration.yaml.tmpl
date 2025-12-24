@@ -15,6 +15,6 @@ spec:
           env:
           {{- range $key, $val := .envs }}
             - name: {{ $key }}
-              value: "{{ $val }}"
+              value: {{ printf "%q" (printf "%v" $val) }}
           {{- end }}
 ---

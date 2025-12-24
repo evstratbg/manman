@@ -34,7 +34,7 @@ spec:
           env:
           {{- range $key, $val := .envs }}
             - name: {{ $key }}
-              value: "{{ $val }}"
+              value: {{ printf "%q" (printf "%v" $val) }}
           {{- end }}
           {{- if or .memory_limits .memory_requests .cpu_requests }}
           resources:
