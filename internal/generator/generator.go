@@ -300,9 +300,9 @@ func (g *Generator) renderCronjobs() ([]string, error) {
 		}
 
 		envs := mergeMaps(g.envs, resolveEnvMap(cronjob.Envs, g.currentEnv))
-		concurrency := strings.ToUpper(fmt.Sprint(cronjob.Concurrency))
+		concurrency := normalizeConcurrency(fmt.Sprint(cronjob.Concurrency))
 		if resolved := resolveForEnv(cronjob.Concurrency, g.currentEnv); resolved != nil {
-			concurrency = strings.ToUpper(fmt.Sprint(resolved))
+			concurrency = normalizeConcurrency(fmt.Sprint(resolved))
 		}
 
 		ctx := map[string]any{
@@ -330,6 +330,19 @@ func (g *Generator) renderCronjobs() ([]string, error) {
 	}
 
 	return manifests, nil
+}
+
+func normalizeConcurrency(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "allow":
+		return "Allow"
+	case "forbid":
+		return "Forbid"
+	case "replace":
+		return "Replace"
+	default:
+		return value
+	}
 }
 
 func (g *Generator) renderWorkers() ([]string, error) {
