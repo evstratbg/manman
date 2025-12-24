@@ -38,6 +38,7 @@ type API struct {
 	Name         string            `yaml:"name"`
 	Enabled      any               `yaml:"enabled"`
 	Replicas     any               `yaml:"replicas"`
+	Port         any               `yaml:"port"`
 	MemoryLimits any               `yaml:"memory_limits"`
 	Requests     *Requests         `yaml:"requests"`
 	Envs         map[string]any    `yaml:"envs"`

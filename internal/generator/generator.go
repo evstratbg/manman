@@ -230,6 +230,7 @@ func (g *Generator) renderApis() ([]string, error) {
 			"command":          api.Command,
 			"image":            g.image,
 			"replicas":         resolveForEnv(api.Replicas, g.currentEnv),
+			"port":             resolveForEnv(api.Port, g.currentEnv),
 			"project_name":     g.projectName,
 			"is_hpa_enabled":   api.HPA != nil,
 			"current_env":      g.currentEnv,
