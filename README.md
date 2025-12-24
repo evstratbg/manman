@@ -64,6 +64,7 @@ apis:
     name: api
     enabled: true
     replicas: 2
+    port: 8000
     memory_limits: 512Mi
     requests:
       memory: 256Mi
