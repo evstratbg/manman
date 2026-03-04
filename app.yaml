@@ -1,0 +1,171 @@
+engine:
+  language:
+    name: python
+    version: "3.11"
+  additional_system_packages:
+    - postgresql-client
+    - netcat
+  package_manager:
+    name: poetry
+    version: "1.5.0"
+
+envs:
+  ENVIRONMENT:
+    _default: dev
+    dev: dev
+    staging: staging
+    production: production
+  SENTRY_RELEASE:
+    _default: ""
+  SMS_DELAY:
+    _default: 60
+  DEBUG:
+    _default: false
+  ACCESS_TOKEN_EXPIRE_SECONDS:
+    _default: 3600
+    dev: 3600
+    staging: 3600
+
+  POSTGRES_PORT:
+    _default: 6432
+  POSTGRES_USER:
+    _default: api
+  POSTGRES_DB:
+    _default: clients
+  POSTGRES_MAX_POOLSIZE:
+    _default: 10
+    dev: 10
+    staging: 1
+    production: 10
+
+  SMS_AERO_URL:
+    _default: https://gate.smsaero.ru
+  SMS_AERO_LOGIN:
+    _default: daler.fatykhov@u-3.online
+
+  MAILGUN_URL:
+    _default: https://api.mailgun.net/v3
+  MAILGUN_DOMAIN:
+    _default: sandbox0378d99c994244459c535e0c0664e7a2.mailgun.org
+    production: email.u-3.online
+
+  FILE_SAVER_URL:
+    _default: http://file-saver
+  INTERCOM_URL:
+    _default: http://intercom
+
+  PRICES_API_URL:
+    _default: http://prices-api
+  WORKERS_API_URL:
+    _default: http://workers-api
+
+  ISSUE_LIVETIME_SECONDS:
+    _default: 100000
+
+  DEBUG_PHONES:
+    _default: "[\"79992228800\", \"79992228801\", \"79992228802\", \"79992228803\", \"79992228803\", \"79992228808\", \"79992228810\"]"
+    production: "[\"79992228809\"]"
+
+  INTERNAL_API_URL:
+    _default: http://internal-api
+  BACKOFFICE_API_URL:
+    _default: http://backoffice-api
+  INTEGRATION_API_URL:
+    _default: http://integration-api
+
+  REDIS_PORT:
+    _default: 6379
+  INTERCOM_REDIS_DB:
+    _default: 0
+
+  CAPTCHA_WEBVIEW_URL:
+    _default: https://smartcaptcha.yandexcloud.net/webview
+  CAPTCHA_URL:
+    _default: https://smartcaptcha.yandexcloud.net
+  CAPTCHA_ENABLED:
+    _default: true
+    dev: true
+    staging: true
+    production: true
+
+  OTEL_ENABLED:
+    _default: false
+    dev: true
+
+  HELP_TYPE_REQUIRED_MOBILE_VERSION:
+    _default: '{"ios-app":"0.2.63","android-app":"0.0.84"}'
+    dev: '{"ios-app":"0.2.39","android-app":"0.0.82"}'
+    staging: '{"ios-app":"0.2.39","android-app":"0.0.82"}'
+    production: '{"ios-app":"0.2.63","android-app":"0.0.84"}'
+
+apis:
+  - name: clients-api
+    enabled: true
+    replicas:
+      _default: 1
+    min_replicas:
+      _default: 1
+      dev: 1
+      production: 3
+    max_replicas:
+      _default: 1
+      dev: 2
+      staging: 1
+      production: 20
+    target_cpu_utilization_percentage:
+      _default: 60
+      dev: 80
+      staging: 80
+      production: 60
+    port: 8000
+    memory_limits:
+      _default: 300Mi
+      dev: 300Mi
+      staging: 300Mi
+      production: 300Mi
+    requests:
+      memory:
+        _default: 300Mi
+        dev: 300Mi
+        staging: 300Mi
+        production: 300Mi
+      cpu:
+        _default: 200m
+        dev: 200m
+        staging: 200m
+        production: 200m
+    envs:
+      POSTGRES_MAX_POOLSIZE:
+        _default: 10
+        dev: 10
+        staging: 1
+        production: 10
+    command: uvicorn run:app --host 0.0.0.0 --port 8000 --workers 1
+    ingress:
+      domain:
+        _default: clients-api.dev.mytech.global
+        dev: clients-api.dev.mytech.global
+        staging: clients-api.staging.mytech.global
+        production: clients-api.mytech.global
+      proxy-body-size: 70M
+
+cronjobs:
+  - name: remove-tag-inactive-users
+    enabled:
+      _default: true
+    schedule:
+      _default: "*/30 * * * *"
+      production: "0 0 * * *"
+    concurrency: Allow
+    command: python cron_cli.py remove_tag_inactive_users
+    envs:
+      POSTGRES_MAX_POOLSIZE:
+        _default: 1
+
+migration:
+  envs:
+    POSTGRES_MAX_POOLSIZE:
+      _default: 1
+  enabled: true
+  command: aerich upgrade
+
