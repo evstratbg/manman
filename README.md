@@ -28,7 +28,7 @@ go build -o manman ./cmd/manman
 ## Флаги CLI
 - `-app` — путь к `app.yaml` (обязательный).
 - `-templates` — каталог шаблонов (обязательный). Внутри ожидаются `_default`, `<team>/_default`, `<team>/<language>`.
-- `-mode` — `helm` или `dockerfile` (обязательный).
+- `-mode` — `helm`, `dockerfile` или `generate-values` (обязательный).
 - `-output` — имя выходного файла (по умолчанию `manifests.yaml` или `Dockerfile`).
 - `-team` — имя команды (по умолчанию `_default`).
 - `-env` — окружение для env‑оверрайдов (по умолчанию `dev`).
@@ -37,6 +37,17 @@ go build -o manman ./cmd/manman
 - `-project-id` — передается в генератор (по умолчанию не используется в шаблонах).
 - `-branch`, `-commit`, `-release` — значения, доступные в шаблонах.
 - `-secret-key` — hex‑ключ AES для расшифровки `secrets.envs` и `secret-values.yaml`.
+
+Для режима `generate-values` достаточно передать только `-app` и `-mode`.
+
+## Генерация values по окружениям
+```bash
+./manman -app ./app.yaml -mode generate-values
+```
+
+Поведение:
+- если в `app.yaml` найдены env‑карты с `_default` и ключами окружений, генерируются файлы `values.<env>.yaml` (например, `values.dev.yaml`, `values.production.yaml`);
+- если в конфиге есть только `_default` без отдельных окружений, генерируется один `values.yaml`.
 
 ## Как выбираются шаблоны
 Шаблоны ищутся в порядке:
