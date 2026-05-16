@@ -160,6 +160,10 @@ func (g *Generator) GenerateManifests() (string, error) {
 }
 
 func (g *Generator) renderMigrations() ([]string, error) {
+	if len(g.manifest.DBMigrations) == 0 {
+		return nil, nil
+	}
+
 	templatePath, err := g.findTemplate("migration.yaml.tmpl")
 	if err != nil {
 		return nil, err
@@ -193,6 +197,10 @@ func (g *Generator) renderMigrations() ([]string, error) {
 }
 
 func (g *Generator) renderApis() ([]string, error) {
+	if len(g.manifest.Apis) == 0 {
+		return nil, nil
+	}
+
 	templatePath, err := g.findTemplate("api.yaml.tmpl")
 	if err != nil {
 		return nil, err
@@ -288,6 +296,10 @@ func (g *Generator) renderApis() ([]string, error) {
 }
 
 func (g *Generator) renderCronjobs() ([]string, error) {
+	if len(g.manifest.Cronjobs) == 0 {
+		return nil, nil
+	}
+
 	templatePath, err := g.findTemplate("cronjob.yaml.tmpl")
 	if err != nil {
 		return nil, err
@@ -346,6 +358,10 @@ func normalizeConcurrency(value string) string {
 }
 
 func (g *Generator) renderWorkers() ([]string, error) {
+	if len(g.manifest.Workers) == 0 {
+		return nil, nil
+	}
+
 	templatePath, err := g.findTemplate("worker.yaml.tmpl")
 	if err != nil {
 		return nil, err
