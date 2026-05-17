@@ -282,6 +282,38 @@ func TestGenerateManifestsErrors(t *testing.T) {
 	}
 }
 
+func TestGenerateManifestsSkipsMissingTemplatesForEmptySections(t *testing.T) {
+	tmp := t.TempDir()
+	mustMkdir(t, filepath.Join(tmp, "_default"))
+	mustWrite(t, filepath.Join(tmp, "_default", "dockerfile.tmpl"), "FROM x\n")
+	mustWrite(t, filepath.Join(tmp, "_default", "api.yaml.tmpl"), "api {{.name}}\n")
+	mustWrite(t, filepath.Join(tmp, "_default", "tolerations.yaml"), "_default: []\n")
+	mustWrite(t, filepath.Join(tmp, "_default", "affinity.yaml"), "_default: {}\n")
+
+	g, err := New(Options{
+		Manifest: &config.Manifest{
+			Engine: config.Engine{Language: config.Language{Name: "node", Version: "22"}},
+			Apis: []config.API{
+				{Name: "frontend", Enabled: true},
+			},
+		},
+		TemplatesDir: tmp,
+		Team:         "_default",
+		CurrentEnv:   "dev",
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	manifests, err := g.GenerateManifests()
+	if err != nil {
+		t.Fatalf("GenerateManifests: %v", err)
+	}
+	if !strings.Contains(manifests, "api frontend") {
+		t.Fatalf("expected api manifest, got: %s", manifests)
+	}
+}
+
 func TestRenderAndLoadYAMLErrors(t *testing.T) {
 	tmp := t.TempDir()
 	mustMkdir(t, filepath.Join(tmp, "_default"))
